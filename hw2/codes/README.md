@@ -1,10 +1,10 @@
-compile: make
-executable: genericScan
-command line option: 
-   -m [method] (omp_cpu/cuda)
-   -n [length of array] 
-   -d [dimension of array]
-   -i [input] (test1: initialize array with all ones)
+compile: make. 
+executable: genericScan. 
+command line option:   
+   -m [method] (omp_cpu/cuda). 
+   -n [length of array]   
+   -d [dimension of array]. 
+   -i [input] (test1: initialize array with all ones). 
 
 MPI (for both cpu and gpu)
     ibrun -np size ./genericScan [options]
