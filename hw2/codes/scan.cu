@@ -13,7 +13,7 @@ extern float toBW(int bytes, float sec);
 
 /* Helper function to round up to a power of 2. 
  */
-static inline int nextPow2(int n)
+static inline long long int nextPow2(long long int n)
 {
     n--;
     n |= n >> 1;
@@ -28,7 +28,7 @@ static inline int nextPow2(int n)
 // Device code
 
 __global__ void
-upsweep(int N, int dim, int twod, int twod1, float* output) {
+upsweep(long long int N, int dim, int twod, int twod1, float* output) {
 
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -37,7 +37,7 @@ upsweep(int N, int dim, int twod, int twod1, float* output) {
 }
 
 __global__ void
-downsweep(int N, int dim, int twod, int twod1, float* output) {
+downsweep(long long int N, int dim, int twod, int twod1, float* output) {
 
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -46,7 +46,7 @@ downsweep(int N, int dim, int twod, int twod1, float* output) {
 }
 
 __global__ void
-sum_const(int N, int dim, float* const_array, float* output){
+sum_const(long long int N, int dim, float* const_array, float* output){
 
     // here N is the total length n*dim
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -60,11 +60,11 @@ sum_const(int N, int dim, float* const_array, float* output){
 
 
 
-void inclusive_scan(int N, int lens, int dim, float* device_result){
+void inclusive_scan(long long int N, long long int lens, int dim, float* device_result){
 
-    int blocksize = 512;
-    int num_blocks = (N+blocksize-1)/blocksize;
-    printf("block size = %d, number of blocks %d \n",blocksize,num_blocks); 
+    long long int blocksize = 512;
+    long long int num_blocks = (N+blocksize-1)/blocksize;
+    printf("N=%lld,block size = %lld, number of blocks %lld \n",N,blocksize,num_blocks); 
     for (int twod =1; twod <lens; twod *=2){
         int twod1 = twod*2;
             upsweep<<< num_blocks, blocksize  >>>(N, dim, twod, twod1, device_result);        
@@ -76,23 +76,23 @@ void inclusive_scan(int N, int lens, int dim, float* device_result){
     }
 }
 
-void plus_const(int N, int dim, float* const_array, float* device_result){
+void plus_const(long long int N, int dim, float* const_array, float* device_result){
     // here N is the total length n*dim
-    int blocksize = 256;
-    int num_blocks = (N+blocksize-1)/blocksize;
+    long long int blocksize = 512;
+    long long int num_blocks = (N+blocksize-1)/blocksize;
     sum_const<<< num_blocks, blocksize  >>>(N, dim, const_array, device_result);
 
 }
 
 
 // cuda scan
-double cudaScan(float* inarray, int N, int dim)
+double cudaScan(float* inarray, long long int N, int dim)
 {
     // N is the total length of the array N = n*dim;
     // round N to the next power of 2 to call recursive kernels;
-    int lens = N/dim; //printf("lens %d",lens); 
-    int round_lens = nextPow2(lens);
-    int rounded_length=dim*round_lens; //printf("the rounded length %d,blocks %d",rounded_length,rounded_length/512);
+    long long int lens = N/dim; printf("N %lld, lens %lld\n",lens); 
+    long long int round_lens = nextPow2(lens); printf("round lens %d\n",round_lens);
+    long long int rounded_length=dim*round_lens; printf("the rounded length %lld,blocks %lld\n",rounded_length,rounded_length/512);
     float* device_result;
 
     cudaMalloc((void **)&device_result, sizeof(float) * rounded_length);
@@ -117,7 +117,7 @@ double cudaScan(float* inarray, int N, int dim)
 }
 
 // cuda parallel sum
-double cudaSum(int N, int dim, float* sum0, float* resultarray)
+double cudaSum(long long int N, int dim, float* sum0, float* resultarray)
 {   // here N is the total length n*dim
     float* device_result;
     float* device_sum;

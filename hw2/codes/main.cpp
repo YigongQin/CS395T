@@ -8,10 +8,10 @@
 #include <mpi.h>
 // #include "ompscan.h"
 #define NUM_THREADS 2
-double cpu_plus_const(int N, int dim, float* sum0, float* resultarray);
-double cudaSum(int N, int dim, float* sum0, float* resultarray);
-double cudaScan(float* start, int N, int dim);
-double ompScan(float* start, int N, int dim);
+double cpu_plus_const(long long int N, int dim, float* sum0, float* resultarray);
+double cudaSum(long long int N, int dim, float* sum0, float* resultarray);
+double cudaScan(float* start, long long int N, int dim);
+double ompScan(float* start, long long int N, int dim);
 void printCudaInfo();
 
 static inline int nextPow2(int n)
@@ -85,11 +85,11 @@ int main(int argc, char** argv)
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
-    int N = 64;
+    long long int N = 64;
     int dim =1;
     std::string test; 
     std::string input;
-    int itrs = 1;
+    int itrs = 10;
     // parse commandline options ////////////////////////////////////////////
     int opt;
     static struct option long_options[] = {
@@ -107,7 +107,7 @@ int main(int argc, char** argv)
             test = optarg; 
             break;
         case 'n':
-            N = atoi(optarg);
+            N = atoll(optarg);
             break;
         case 'i':
             input = optarg;
@@ -123,10 +123,10 @@ int main(int argc, char** argv)
     }
     // end parsing of commandline options //////////////////////////////////////
     if (rank==0)
-       printf("the length, dimensions and total size of the array: %d, %d, %d \n\n", N, dim, N*dim);
-    int Nall = N*dim;
+       printf("the length, dimensions and total size of the array: %lld, %d, %lld \n\n", N, dim, N*dim);
+    long long int Nall = N*dim;
     N= (Nall+size-1)/size; // total size of the array;
-    if (rank==0) printf("each proccesor has size %d\n", N); 
+    if (rank==0) printf("each proccesor has size %lld\n", N); 
     float* inarray = new float[N];
     float* checkarray = new float[N];
     float* sum0 = new float[dim]; 
@@ -134,23 +134,16 @@ int main(int argc, char** argv)
 
     double cudaTime=0,ompTime=0;
 
+    for (int ite=0; ite<itrs; ite++) {
+     printf("\n");printf("%d iteration",ite+1);printf("\n");
+     initialization(input, N, inarray, checkarray);
     if (test.compare("cuda") == 0) { 
         // run CUDA implementation
         //printCudaInfo();
-        for (int i=0; i<itrs; i++) {
-                initialization(input, N, inarray, checkarray);
                 cudaTime += cudaScan(inarray, N, dim);
-        }
-        cudaTime/=itrs;
-        if (size==1) printf("GPU_time: %.3f ms\n", 1000.f * cudaTime);
     } else if (test.compare("omp_cpu") == 0) { // Test find_repeats
         printf("rank %d, uses number of threads: %d\n", rank, NUM_THREADS); 
-        for (int i=0; i<itrs; i++) {
-                initialization(input, N, inarray, checkarray);
                 ompTime += ompScan(inarray, N, dim);
-        } 
-        ompTime/=itrs;
-        if (size==1) printf("CPU_time: %.3f ms\n", 1000.f * ompTime);
     } else { 
         usage(argv[0]); 
         exit(1); 
@@ -158,29 +151,36 @@ int main(int argc, char** argv)
     if (size >1){
 
      // printf("MPI communication ----------------------------------------\n");
+      MPI_Barrier( comm );
       double startTime = CycleTimer::currentSeconds();
       {for (int i = 0; i<dim; i++) {sum0[i] = inarray[i+N-dim];}}
     // communication between cpus of the last element. 
-      MPI_Barrier( comm ); //printf("rank %d ready to communicate\n",rank);
+      //MPI_Barrier( comm ); //printf("rank %d ready to communicate\n",rank);
 
       if (rank !=0){ MPI_Recv(recvbuf, dim, MPI_FLOAT, rank-1 , rank-1, comm, MPI_STATUS_IGNORE);
                   printf("rank %d recv message, tag %d \n",rank,rank-1);
                   for (int i = 0; i<dim; i++) {sum0[i] += recvbuf[i];}}
       if (rank!=size-1) {MPI_Send(sum0, dim, MPI_FLOAT, rank+1 , rank, comm);
                   printf("rank %d send message, tag %d \n",rank,rank);}
+     MPI_Barrier( comm );
     double endTime = CycleTimer::currentSeconds(); 
-    printf("MPI communication time  %.3f ms\n", 1000.f *(endTime-startTime));
+    if (rank==0) printf("MPI communication time  %.3f ms\n", 1000.f *(endTime-startTime));
      // printf("MPI communication ----------------------------------------\n");
     //printf("rank %d, the summation from previous rank %f \n", rank, recvbuf[0]);
     // add sum0 to every processor
     if (test.compare("cuda") == 0) {
         if (rank !=0)  cudaTime += cudaSum(N, dim, recvbuf, inarray); 
-       printf("GPU_time: %.3f ms\n", 1000.f * cudaTime); }
-    else if (test.compare("omp_cpu") == 0) { // Test find_repeats
-         if (rank !=0) ompTime += cpu_plus_const(N, dim, recvbuf, inarray);
-        printf("CPU_time: %.3f ms\n", 1000.f * ompTime);  
+    }else if (test.compare("omp_cpu") == 0) { // Test find_repeats
+        if (rank !=0) ompTime += cpu_plus_const(N, dim, recvbuf, inarray);
     } else { usage(argv[0]);exit(1);}
-    }
+
+    }}
+
+    if (test.compare("cuda") == 0) {
+        if (rank ==0) printf("GPU_time: %.3f ms\n", 1000.f * cudaTime/itrs);
+    }else if (test.compare("omp_cpu") == 0) { // Test find_repeats
+        if (rank ==0) printf("CPU_time: %.3f ms\n", 1000.f * ompTime/itrs);
+    } else { usage(argv[0]);exit(1);}
 
     if (((input.compare("test1") == 0) | (input.compare("test1") == 0) )){
      // check with sequential code.
@@ -208,7 +208,7 @@ int main(int argc, char** argv)
     return 0;
 }
 
-double ompScan( float* start, int length, int dim ){
+double ompScan( float* start, long long int length, int dim ){
 
   int lens = length/dim;
   int round_lens = nextPow2(lens);
@@ -248,7 +248,7 @@ double ompScan( float* start, int length, int dim ){
    return overallDuration;
 }
 
-double cpu_plus_const(int N, int dim, float* sum0, float* resultarray){
+double cpu_plus_const(long long int N, int dim, float* sum0, float* resultarray){
 
   int dim_id;
   double startTime = CycleTimer::currentSeconds();
