@@ -14,6 +14,18 @@ double cudaScan(float* start, long long int N, int dim);
 double ompScan(float* start, long long int N, int dim);
 void printCudaInfo();
 
+
+void binary_operator(std::string op, float* x, float* y){
+
+
+   if (op.compare("sum") == 0) { *x= *x+*y;}
+   else if (op.compare("mlp") == 0) { *x =  *x*(*y);}
+   else {printf("the operation not supported");exit(1);} 
+ 
+}
+
+
+
 static inline int nextPow2(int n)
 {
     n--;
@@ -50,7 +62,7 @@ void cpu_inclusive_scan(float* start, int rank, int N, int dim)
            output[i*dim+j] = output[ (i-1)*dim +j] + start[ i*dim +j];
     }
    //printf("%d uuuu",N*rank);
-   for (int i = 0; i < N; i++) output[i] += N*rank;
+   for (int i = 0; i < N; i++) output[i] += N*rank/dim;
    memmove(start, output, N*sizeof(float));
    delete[] output;
 }
@@ -191,7 +203,7 @@ int main(int argc, char** argv)
     // printf("\n");
      for (int i = 0; i < N; i++)
         {   //printf("real value = %d\n",checkarray[i]);
-            if( abs(checkarray[i] - inarray[i])/abs(checkarray[i])>1e-6 )
+            if( abs(checkarray[i] - inarray[i])/abs(checkarray[i])>1e-5 )
             {
                 fprintf(stderr,
                         "Error: Device inclusive_scan outputs incorrect result."
