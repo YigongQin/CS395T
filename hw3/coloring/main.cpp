@@ -127,7 +127,7 @@ int main(int argc, char** argv)
            num_lines +=1;}//ss >> a >>b >>c; } //++num_lines;
     std::cout << "number of lines of input file: " << num_lines << std::endl;
 
-    for (int i = 0; i < num_vert; i++){ flag[i]=0; }
+  //  for (int i = 0; i < num_vert; i++){ flag[i]=0; }
     for (int i = 0; i < num_edges; i++){ row[i]=row[i]-1; column[i]=column[i]-1; }
     //for (int i = 0; i < num_edges; i++){printf("%f ", weights[i]);}
     //printf("\n");
@@ -137,9 +137,11 @@ int main(int argc, char** argv)
 
 
     for (int i = 0; i < itrs; i++){
-        if (test.compare("mis") == 0){      
+        if (test.compare("mis") == 0){
+              for (int j = 0; j < num_vert; j++){ flag[j]=0; } 
               cudaTime += cudaMIS(1, flag, num_vert, num_edges, row, column);
         }else if(test.compare("color") == 0){
+              for (int j = 0; j < num_vert; j++){ flag[j]=0; }
               cudaTime += cudaColoring(1, flag, num_vert, num_edges, row, column); 
         }else{ usage(argv[0]);
                 exit(1);

@@ -125,7 +125,7 @@ void MIS(int colorid, int num_vert, long long int num_edges, int* d_flag, int* d
     // random number initialization for d_random, flags all to 0 (active)
      random_init<<< num_block1, blocksize >>> (num_vert, d_random);
      end_flag = false;
-
+     int iter_mis = 0;
      while ( !end_flag ){
      //for (int i =0; i<5;i++){
     // compare the two vertices at one edge, the bigger one (or equal one) set to -2  
@@ -142,8 +142,9 @@ void MIS(int colorid, int num_vert, long long int num_edges, int* d_flag, int* d
      cudaDeviceSynchronize(); // most important
      //printf(end_flag ? "true" : "false"); printf("\n");
      //copy_flag<<< num_block1, blocksize >>>(num_vert, d_flag, d_flag2);
+     iter_mis +=1;
      }
-
+     printf("iterations for one MIS: %d\n", iter_mis);
      //find_min<<< num_block2, blocksize >>>( num_vert, num_edges, d_flag, d_row, d_column, d_random );
 
 
@@ -182,6 +183,7 @@ void coloring(int colorid, int num_vert, long long int num_edges, int* d_flag, i
        cudaDeviceSynchronize();
        //printf("all color end");printf(color_flag ? "true" : "false"); 
      }
+     printf("the number of colors: %d\n",colorid-1);
 }
 
 
@@ -219,7 +221,7 @@ double cudaMIS(int colorid, int* flag, int num_vert, long long int num_edges, in
     
     cudaMemcpy(flag, d_flag, num_vert * sizeof(int), cudaMemcpyDeviceToHost);
 
-    cudaFree(d_flag); cudaFree(d_row); cudaFree(d_column); cudaFree(d_random);
+    cudaFree(d_flag); cudaFree(d_flag2); cudaFree(d_row); cudaFree(d_column); cudaFree(d_random);
     return overallDuration;
 }
 
